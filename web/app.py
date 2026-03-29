@@ -1,3 +1,6 @@
+import sys, os
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
 from flask import Flask, request, jsonify, render_template
 from ml.model import predict_monthwise_scarcity_with_score
 

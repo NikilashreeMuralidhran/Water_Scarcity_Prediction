@@ -4,8 +4,7 @@ __pycache__/
 *.zip
 .vscode/
 data/
-*.csv
+
 *.xlsx
 *.parquet
-results_figures/
 .DS_Store

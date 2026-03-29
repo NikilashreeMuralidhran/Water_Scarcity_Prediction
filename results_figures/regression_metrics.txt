@@ -1,0 +1,6 @@
+Regression Performance Metrics
+=============================================
+R² Score:                      0.9999
+Mean Absolute Error (MAE):     0.0003
+Root Mean Squared Error (RMSE):0.0004
+5-Fold CV R² (mean ± std):     0.9226 ± 0.0803

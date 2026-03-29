@@ -19,13 +19,14 @@ import matplotlib
 matplotlib.use('Agg')  # Non-interactive backend
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
-from sklearn.ensemble import RandomForestRegressor
+from sklearn.ensemble import GradientBoostingRegressor
 from sklearn.model_selection import train_test_split, cross_val_score
 from sklearn.metrics import (
     classification_report, confusion_matrix,
     mean_absolute_error, mean_squared_error, r2_score,
     accuracy_score
 )
+from sklearn.utils.class_weight import compute_sample_weight
 import seaborn as sns
 
 # ============================================================
@@ -50,7 +51,7 @@ for _, r in raw.iterrows():
     ward = int(r["ward"])
     year = int(r["year"])
     population = float(r["population"])
-    rainfall = float(r["rainfall_Rainfall"]) if pd.notna(r.get("rainfall_Rainfall")) else np.nan
+    # rainfall_Rainfall is annual (0.1% importance) — not included as a feature
 
     for m_idx, m in enumerate(MONTHS, start=1):
         gw_col = f"groundwater_{m}"
@@ -71,15 +72,18 @@ for _, r in raw.iterrows():
         rows.append({
             "ward": ward, "year": year, "month": m_idx, "season": season,
             "population": population, "groundwater": groundwater,
-            "lake_storage": lake_storage, "rainfall": rainfall
+            "lake_storage": lake_storage
         })
 
 df = pd.DataFrame(rows)
-for col in ["population","groundwater","lake_storage","rainfall"]:
+for col in ["population", "groundwater", "lake_storage"]:
     df[col] = pd.to_numeric(df[col], errors="coerce")
 df = df.fillna(df.mean(numeric_only=True))
 
-df["total_water_available"] = df["groundwater"] + df["lake_storage"] + df["rainfall"]
+# Derived feature: groundwater-to-lake ratio (replaces low-signal annual rainfall)
+df["gw_lake_ratio"] = df["groundwater"] / (df["lake_storage"] + 1e-6)
+
+df["total_water_available"] = df["groundwater"] + df["lake_storage"]
 df["water_per_capita"] = df["total_water_available"] / df["population"]
 
 # Scarcity labels
@@ -94,9 +98,12 @@ def score_to_label(s):
     else: return "Low"
 df["scarcity_label"] = df["score"].apply(score_to_label)
 
-features = ["ward","year","month","season","population","groundwater","lake_storage","rainfall"]
+features = ["ward", "year", "month", "season", "population", "groundwater", "lake_storage", "gw_lake_ratio"]
 X = df[features]
 y = df["water_per_capita"]
+
+# Sample weights for class imbalance compensation
+sample_weights = compute_sample_weight("balanced", df["scarcity_label"])
 
 print(f"Dataset: {len(df)} samples, {len(features)} features")
 print(f"Score range: {df['score'].min():.1f} – {df['score'].max():.1f}")
@@ -104,12 +111,25 @@ print(f"Scarcity distribution: {df['scarcity_label'].value_counts().to_dict()}")
 print()
 
 # ============================================================
-# 2. TRAIN/TEST SPLIT + MODEL TRAINING
+# 2. TEMPORAL TRAIN/TEST SPLIT + MODEL TRAINING
+#    Train: 2021-2023  |  Test: 2024 (held-out year)
 # ============================================================
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+temporal_mask = df["year"] < 2024
+X_train = X[temporal_mask];  X_test = X[~temporal_mask]
+y_train = y[temporal_mask];  y_test = y[~temporal_mask]
+sw_train = sample_weights[temporal_mask]
 
-model = RandomForestRegressor(n_estimators=500, random_state=42, n_jobs=-1)
-model.fit(X_train, y_train)
+print(f"Temporal split — Train: {len(X_train)} (2021-2023)  |  Test: {len(X_test)} (2024)")
+
+model = GradientBoostingRegressor(
+    n_estimators=300,
+    learning_rate=0.05,
+    max_depth=5,
+    subsample=0.8,
+    min_samples_leaf=5,
+    random_state=42
+)
+model.fit(X_train, y_train, sample_weight=sw_train)
 
 y_pred = model.predict(X_test)
 
@@ -120,9 +140,9 @@ r2 = r2_score(y_test, y_pred)
 mae = mean_absolute_error(y_test, y_pred)
 rmse = np.sqrt(mean_squared_error(y_test, y_pred))
 
-# Cross-validation (using lighter model for speed)
-cv_model = RandomForestRegressor(n_estimators=100, random_state=42, n_jobs=-1)
-cv_scores = cross_val_score(cv_model, X, y, cv=5, scoring='r2')
+# Cross-validation on training years only (temporal integrity)
+cv_model = GradientBoostingRegressor(n_estimators=100, learning_rate=0.05, max_depth=5, random_state=42)
+cv_scores = cross_val_score(cv_model, X[temporal_mask], y[temporal_mask], cv=5, scoring='r2')
 
 print("=" * 60)
 print("TABLE 1: Regression Performance Metrics")

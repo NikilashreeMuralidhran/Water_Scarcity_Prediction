@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+
+{% block title %}AquaForecast | AI Water Planning{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<section class="hero">
+    <div class="hero-content">
+        <h1 class="hero-title">AquaForecast</h1>
+        <p class="hero-subtitle">AI-Powered Water Scarcity Prediction & Household Planning</p>
+
+        <div class="hero-buttons">
+            <a href="/input" class="btn btn-primary">Start Prediction →</a>
+            <a href="/methodology" class="btn btn-secondary">Learn How It Works</a>
+        </div>
+    </div>
+
+    <div class="hero-visual">
+        <div class="water-drop">💧</div>
+    </div>
+</section>
+
+<!-- Value Props -->
+<section class="value-props">
+    <h2>Why AquaForecast?</h2>
+
+    <div class="props-grid">
+        <div class="prop-card">
+            <span class="prop-icon">📍</span>
+            <h3>Ward-Level Precision</h3>
+            <p>Predict water scarcity for 130+ wards in Chennai using real historical data.</p>
+        </div>
+
+        <div class="prop-card">
+            <span class="prop-icon">🤖</span>
+            <h3>AI-Based Budgeting</h3>
+            <p>Get personalized household water budget based on your family size & lifestyle.</p>
+        </div>
+
+        <div class="prop-card">
+            <span class="prop-icon">📊</span>
+            <h3>Monthly Planning</h3>
+            <p>Plan your water usage task-wise: bathing, cooking, cleaning, gardening.</p>
+        </div>
+
+        <div class="prop-card">
+            <span class="prop-icon">🚛</span>
+            <h3>Reduce Tanker Dependency</h3>
+            <p>Know your refill schedule and avoid last-minute tanker bookings.</p>
+        </div>
+    </div>
+</section>
+
+<!-- Preview Section -->
+<section class="preview-section">
+    <h2>What You'll Get</h2>
+    <div class="preview-cards">
+        <div class="preview-card">
+            <div class="preview-icon">📈</div>
+            <h4>Scarcity Score</h4>
+            <p>0-100 score based on ML prediction</p>
+        </div>
+        <div class="preview-card">
+            <div class="preview-icon">🥧</div>
+            <h4>Usage Breakdown</h4>
+            <p>Pie chart showing task allocation</p>
+        </div>
+        <div class="preview-card">
+            <div class="preview-icon">💡</div>
+            <h4>Smart Tips</h4>
+            <p>Context-aware conservation advice</p>
+        </div>
+    </div>
+</section>
+
+<!-- CTA -->
+<section class="cta-section">
+    <h2>Ready to Plan Your Water?</h2>
+    <a href="/input" class="btn btn-primary btn-large">Get Started Free →</a>
+</section>
+{% endblock %}

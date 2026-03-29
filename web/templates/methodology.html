@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+
+{% block title %}How It Works | AquaForecast{% endblock %}
+
+{% block content %}
+<div class="methodology-container">
+    <h1>How AquaForecast Works</h1>
+    <p class="method-subtitle">A transparent look at our prediction pipeline</p>
+
+    <!-- Section 1: Data Pipeline -->
+    <section class="method-section">
+        <h2>📊 1. Data Pipeline</h2>
+        <div class="pipeline-flow">
+            <div class="pipeline-step">
+                <div class="step-icon">📁</div>
+                <h4>Raw Data</h4>
+                <p>Historical ward-wise data (2021-2024)</p>
+            </div>
+            <div class="pipeline-arrow">→</div>
+            <div class="pipeline-step">
+                <div class="step-icon">🔄</div>
+                <h4>Transform</h4>
+                <p>Wide to Long (Monthly rows)</p>
+            </div>
+            <div class="pipeline-arrow">→</div>
+            <div class="pipeline-step">
+                <div class="step-icon">⚙️</div>
+                <h4>Features</h4>
+                <p>Season, Water Availability</p>
+            </div>
+            <div class="pipeline-arrow">→</div>
+            <div class="pipeline-step">
+                <div class="step-icon">🤖</div>
+                <h4>ML Model</h4>
+                <p>Random Forest Prediction</p>
+            </div>
+            <div class="pipeline-arrow">→</div>
+            <div class="pipeline-step">
+                <div class="step-icon">📈</div>
+                <h4>Score</h4>
+                <p>0-100 Scarcity Index</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Section 2: ML Model -->
+    <section class="method-section">
+        <h2>🤖 2. Machine Learning Model</h2>
+        <div class="method-card">
+            <h3>Random Forest Regressor</h3>
+            <p>We use an ensemble of <strong>500 decision trees</strong> to predict Water Per Capita (WPC).</p>
+
+            <h4>Why Random Forest?</h4>
+            <ul>
+                <li>Handles non-linear relationships well</li>
+                <li>Robust to noisy environmental data</li>
+                <li>Provides feature importance rankings</li>
+            </ul>
+
+            <h4>Features Used:</h4>
+            <div class="feature-tags">
+                <span class="tag">Ward</span>
+                <span class="tag">Year</span>
+                <span class="tag">Month</span>
+                <span class="tag">Season</span>
+                <span class="tag">Population</span>
+                <span class="tag">Groundwater</span>
+                <span class="tag">Lake Storage</span>
+                <span class="tag">Rainfall</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- Section 3: Scoring -->
+    <section class="method-section">
+        <h2>📏 3. Scoring System</h2>
+        <div class="method-card">
+            <h3>Min-Max Normalization</h3>
+            <div class="formula-box">
+                <code>Score = (Predicted_WPC - Min_WPC) / (Max_WPC - Min_WPC) × 100</code>
+            </div>
+
+            <h4>Threshold Mapping:</h4>
+            <table class="threshold-table">
+                <thead>
+                    <tr>
+                        <th>Score Range</th>
+                        <th>Label</th>
+                        <th>Interpretation</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr class="high">
+                        <td>0 – 30</td>
+                        <td><span class="badge label-High">High Scarcity</span></td>
+                        <td>Critical shortage. Immediate action required.</td>
+                    </tr>
+                    <tr class="medium">
+                        <td>30 – 60</td>
+                        <td><span class="badge label-Medium">Medium Scarcity</span></td>
+                        <td>Moderate stress. Conservation needed.</td>
+                    </tr>
+                    <tr class="low">
+                        <td>60 – 100</td>
+                        <td><span class="badge label-Low">Low Scarcity</span></td>
+                        <td>Adequate availability. Sustainable usage.</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <!-- Section 4: Adaptive Plan -->
+    <section class="method-section">
+        <h2>💧 4. Adaptive Planning Logic</h2>
+        <div class="method-card">
+            <h3>Budget Calculation</h3>
+            <div class="formula-box">
+                <code>Monthly_Budget = Family_Size × 135 L × 30 Days × House_Factor × Scarcity_Factor</code>
+            </div>
+
+            <h4>House Type Factors:</h4>
+            <ul>
+                <li><strong>Apartment:</strong> ×1.00 (Baseline)</li>
+                <li><strong>Independent House:</strong> ×1.15 (+15%)</li>
+                <li><strong>Gated Community:</strong> ×1.10 (+10%)</li>
+                <li><strong>Informal Settlement:</strong> ×0.90 (-10%)</li>
+            </ul>
+
+            <h4>Task Allocation:</h4>
+            <ul>
+                <li>Bathing: 32% | Toilet: 28% | Washing: 16%</li>
+                <li>Cooking: 12% | Cleaning: 8% | Gardening: 4%</li>
+            </ul>
+        </div>
+    </section>
+
+    <div class="cta-section">
+        <a href="/input" class="btn btn-primary btn-large">Try It Now →</a>
+    </div>
+</div>
+{% endblock %}

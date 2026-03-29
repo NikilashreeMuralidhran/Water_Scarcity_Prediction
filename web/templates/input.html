@@ -1,0 +1,223 @@
+{% extends "base.html" %}
+
+{% block title %}Predict Water Scarcity | AquaForecast{% endblock %}
+
+{% block content %}
+<div class="wizard-container">
+    <h1>Water Scarcity Prediction</h1>
+    <p class="wizard-subtitle">Complete 3 steps to generate your personalized water plan</p>
+
+    <!-- Progress Bar -->
+    <div class="progress-bar">
+        <div class="progress-step active" data-step="1">
+            <span class="step-num">A</span>
+            <span class="step-label">Location</span>
+        </div>
+        <div class="progress-line"></div>
+        <div class="progress-step" data-step="2">
+            <span class="step-num">B</span>
+            <span class="step-label">Household</span>
+        </div>
+        <div class="progress-line"></div>
+        <div class="progress-step" data-step="3">
+            <span class="step-num">C</span>
+            <span class="step-label">Usage</span>
+        </div>
+    </div>
+
+    <!-- Step A: Location -->
+    <div class="wizard-step active" id="step-1">
+        <div class="step-card">
+            <h2>📍 Location & Time</h2>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Ward Number (22-155)</label>
+                    <input type="number" id="ward" value="22" min="22" max="155">
+                </div>
+                <div class="form-group">
+                    <label>Year</label>
+                    <input type="number" id="year" value="2026" min="2021" max="2035">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Month</label>
+                <select id="month">
+                    <option value="1">January</option>
+                    <option value="2">February</option>
+                    <option value="3">March</option>
+                    <option value="4">April</option>
+                    <option value="5">May</option>
+                    <option value="6">June</option>
+                    <option value="7">July</option>
+                    <option value="8">August</option>
+                    <option value="9">September</option>
+                    <option value="10">October</option>
+                    <option value="11">November</option>
+                    <option value="12">December</option>
+                </select>
+            </div>
+
+            <div class="step-buttons">
+                <button class="btn btn-primary" onclick="nextStep(2)">Next → Household Profile</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Step B: Household -->
+    <div class="wizard-step" id="step-2">
+        <div class="step-card">
+            <h2>🏠 Household Profile</h2>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Family Size</label>
+                    <input type="number" id="family_size" value="4" min="1">
+                </div>
+                <div class="form-group">
+                    <label>Storage Capacity (Liters)</label>
+                    <input type="number" id="storage_cap" value="1000">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>House Type</label>
+                <select id="house_type">
+                    <option value="Apartment">Apartment</option>
+                    <option value="Independent House">Independent House</option>
+                    <option value="Gated Community">Gated Community</option>
+                    <option value="Informal Settlement">Informal Settlement</option>
+                </select>
+            </div>
+
+            <div class="step-buttons">
+                <button class="btn btn-secondary" onclick="prevStep(1)">← Back</button>
+                <button class="btn btn-primary" onclick="nextStep(3)">Next → Usage Pattern</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Step C: Usage -->
+    <div class="wizard-step" id="step-3">
+        <div class="step-card">
+            <h2>🚿 Water Usage Pattern</h2>
+
+            <div class="form-group">
+                <label>Primary Water Source</label>
+                <select id="primary_source">
+                    <option value="Corporation">Corporation Supply</option>
+                    <option value="Borewell">Borewell</option>
+                    <option value="Tanker">Tanker</option>
+                    <option value="Mixed">Mixed Supply</option>
+                </select>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Bathing Method</label>
+                    <select id="bathing_method">
+                        <option value="Bucket">Bucket (Efficient)</option>
+                        <option value="Shower">Shower</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Washing Machine</label>
+                    <select id="washing_machine">
+                        <option value="1-2">1-2 times/week</option>
+                        <option value="3-4">3-4 times/week</option>
+                        <option value="Daily">Daily</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Gardening</label>
+                    <select id="gardening">
+                        <option value="None">No Garden</option>
+                        <option value="Small">Small Garden</option>
+                        <option value="Large">Large Garden</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Rainwater Harvesting?</label>
+                    <select id="has_rwh">
+                        <option value="No">No</option>
+                        <option value="Yes">Yes</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Car/Bike Washing</label>
+                <select id="car_wash">
+                    <option value="Never">Never</option>
+                    <option value="Weekly">Weekly</option>
+                    <option value="Daily">Daily</option>
+                </select>
+            </div>
+
+            <div class="step-buttons">
+                <button class="btn btn-secondary" onclick="prevStep(2)">← Back</button>
+                <button class="btn btn-primary btn-large" onclick="submitPrediction()">🔮 Generate Adaptive
+                    Plan</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function nextStep(step) {
+        // Validate current step
+        if (step === 2) {
+            const ward = parseInt(document.getElementById("ward").value);
+            if (isNaN(ward) || ward < 22 || ward > 155) {
+                showToast("Invalid Ward! Please enter between 22 and 155.");
+                return;
+            }
+        }
+
+        document.querySelectorAll('.wizard-step').forEach(s => s.classList.remove('active'));
+        document.getElementById('step-' + step).classList.add('active');
+
+        document.querySelectorAll('.progress-step').forEach((s, i) => {
+            if (i < step) s.classList.add('completed');
+            s.classList.toggle('active', i === step - 1);
+        });
+    }
+
+    function prevStep(step) {
+        document.querySelectorAll('.wizard-step').forEach(s => s.classList.remove('active'));
+        document.getElementById('step-' + step).classList.add('active');
+
+        document.querySelectorAll('.progress-step').forEach((s, i) => {
+            s.classList.toggle('active', i === step - 1);
+        });
+    }
+
+    function submitPrediction() {
+        // Collect all data
+        const formData = {
+            ward: document.getElementById("ward").value,
+            year: document.getElementById("year").value,
+            month: document.getElementById("month").value,
+            family_size: document.getElementById("family_size").value,
+            storage_cap: document.getElementById("storage_cap").value,
+            house_type: document.getElementById("house_type").value,
+            primary_source: document.getElementById("primary_source").value,
+            bathing_method: document.getElementById("bathing_method").value,
+            washing_machine: document.getElementById("washing_machine").value,
+            gardening: document.getElementById("gardening").value,
+            car_wash: document.getElementById("car_wash").value,
+            has_rwh: document.getElementById("has_rwh").value
+        };
+
+        // Store in sessionStorage and redirect
+        sessionStorage.setItem('predictionData', JSON.stringify(formData));
+        window.location.href = '/results';
+    }
+</script>
+{% endblock %}

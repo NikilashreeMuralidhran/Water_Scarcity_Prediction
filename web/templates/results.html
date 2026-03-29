@@ -1,0 +1,600 @@
+{% extends "base.html" %}
+
+{% block title %}Results | AquaForecast{% endblock %}
+
+{% block content %}
+<div class="results-container">
+    <div class="loader" id="loader"></div>
+
+    <div id="dashboard" class="hidden">
+        <!-- Row 1: Prediction Summary -->
+        <div class="result-row">
+            <div class="dash-panel panel-gauge">
+                <div class="panel-head">Ward Water Status</div>
+                <div class="scarcity-box">
+                    <div id="scarcity-label" class="badge">--</div>
+                </div>
+                <div class="gauge-container">
+                    <canvas id="gaugeChart"></canvas>
+                </div>
+                <p class="score-text" id="score-text">Availability Score: --/100</p>
+                <p class="context-reason" id="context-reason"></p>
+
+                <!-- Ward Alert -->
+                <div id="ward-alert" class="ward-alert hidden"></div>
+            </div>
+        </div>
+
+        <!-- Row 2: Budget Stats -->
+        <div class="result-row stats-row">
+            <div class="stat-card">
+                <div class="stat-value" id="total-monthly">-- L</div>
+                <div class="stat-label">Monthly Limit</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="weekly-limit">-- L</div>
+                <div class="stat-label">Weekly Limit</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="emergency-reserve">-- L</div>
+                <div class="stat-label">Emergency Reserve</div>
+                <span class="tooltip" data-tip="Reserved for crisis situations like tanker delay">ℹ️</span>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="per-person-day">-- L</div>
+                <div class="stat-label">Per Person/Day</div>
+            </div>
+        </div>
+
+        <!-- Row 3: Allocation -->
+        <div class="result-row allocation-row">
+            <div class="dash-panel">
+                <div class="panel-head">Task-wise Allocation</div>
+                <div class="chart-flex">
+                    <div class="chart-container-pie">
+                        <canvas id="allocationChart"></canvas>
+                    </div>
+                    <div class="breakdown-list" id="breakdown-list"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Row 4: Tips + Actions -->
+        <div class="result-row tips-row">
+            <div class="dash-panel">
+                <div class="panel-head">Sustainability & Tips</div>
+
+                <div class="impact-box" id="impact-box">
+                    <span id="impact-stars">⭐⭐⭐⭐</span>
+                    <span id="impact-msg">You are water-conscious!</span>
+                </div>
+
+                <!-- Seasonal Tip -->
+                <div class="seasonal-tip" id="seasonal-tip"></div>
+
+                <ul id="smart-tips" class="tips-list"></ul>
+
+                <div class="action-buttons">
+                    <button class="btn btn-secondary" onclick="exportPDF()">📄 Download PDF Report</button>
+                    <a href="/input" class="btn btn-secondary">🔄 New Prediction</a>
+                </div>
+            </div>
+
+            <!-- Row 5: Ward Comparison -->
+            <div class="result-row comparison-row">
+                <div class="dash-panel comparison-panel">
+                    <div class="panel-head">Ward Comparison</div>
+                    <button class="btn btn-primary" id="compare-btn" onclick="loadComparison()">
+                        📊 Compare with Other Wards
+                    </button>
+                    <div id="comparison-loader" class="comparison-loader hidden">
+                        <div class="loader-inline"></div>
+                        <span>Analyzing 134 wards...</span>
+                    </div>
+                    <div id="comparison-container" class="hidden">
+                        <!-- Summary Stats -->
+                        <div class="comparison-summary" id="comparison-summary"></div>
+
+                        <!-- Top/Bottom 5 -->
+                        <div class="top-bottom-row" id="top-bottom-row"></div>
+
+                        <!-- View Toggle + Search -->
+                        <div class="comparison-toolbar">
+                            <div class="view-toggle">
+                                <button class="toggle-btn active" id="toggle-heatmap"
+                                    onclick="switchView('heatmap')">🗺️ Heatmap</button>
+                                <button class="toggle-btn" id="toggle-chart" onclick="switchView('chart')">📊 Bar
+                                    Chart</button>
+                            </div>
+                            <div class="ward-search-box">
+                                <input type="number" id="ward-search" placeholder="Search ward #" min="22" max="155"
+                                    oninput="searchWard(this.value)">
+                            </div>
+                        </div>
+
+                        <!-- Legend -->
+                        <div class="comparison-legend">
+                            <div class="legend-item"><span class="legend-dot legend-high"></span> High Scarcity (0–30)
+                            </div>
+                            <div class="legend-item"><span class="legend-dot legend-medium"></span> Medium (30–60)</div>
+                            <div class="legend-item"><span class="legend-dot legend-low"></span> Low Scarcity (60–100)
+                            </div>
+                            <div class="legend-item"><span class="legend-dot legend-user"></span> Your Ward</div>
+                        </div>
+
+                        <!-- Heatmap View -->
+                        <div id="heatmap-view" class="ward-heatmap"></div>
+
+                        <!-- Bar Chart View -->
+                        <div id="chart-view" class="chart-view-container hidden">
+                            <canvas id="comparisonChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endblock %}
+
+    {% block scripts %}
+    <script>
+        let gaugeChart = null;
+        let allocationChart = null;
+        let resultData = null;
+
+        window.onload = function () {
+            const storedData = sessionStorage.getItem('predictionData');
+            if (!storedData) {
+                window.location.href = '/input';
+                return;
+            }
+
+            const formData = JSON.parse(storedData);
+            document.getElementById('loader').style.display = 'block';
+
+            fetch("/predict", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(formData)
+            })
+                .then(res => res.json())
+                .then(data => {
+                    resultData = data;
+                    resultData.formData = formData;
+                    document.getElementById('loader').style.display = 'none';
+                    document.getElementById('dashboard').classList.remove('hidden');
+                    updateDashboard(data, formData);
+                })
+                .catch(err => {
+                    document.getElementById('loader').style.display = 'none';
+                    showToast("Error: " + err);
+                });
+        };
+
+        function updateDashboard(data, formData) {
+            const plan = data.plan_data;
+            const scarcity = data.scarcity;
+            const score = data.score !== null ? Number(data.score).toFixed(1) : 0;
+            const familySize = parseInt(formData.family_size) || 4;
+
+            // Panel 1: Gauge
+            document.getElementById("scarcity-label").innerText = scarcity;
+            document.getElementById("scarcity-label").className = "badge label-" + scarcity;
+            document.getElementById("score-text").innerText = `Availability Score: ${score}/100`;
+            document.getElementById("context-reason").innerText = data.context_reason || "";
+
+            // Ward Alert
+            const wardAlert = document.getElementById("ward-alert");
+            if (scarcity === "High") {
+                wardAlert.classList.remove("hidden");
+                wardAlert.innerHTML = "🚨 <strong>Ward Alert:</strong> Municipal tanker schedule likely to increase. Book in advance!";
+            }
+
+            renderGaugeChart(score);
+
+            // Panel 2: Stats
+            document.getElementById("total-monthly").innerText = plan.total_monthly.toLocaleString() + " L";
+            document.getElementById("weekly-limit").innerText = plan.weekly_limit.toLocaleString() + " L";
+            document.getElementById("emergency-reserve").innerText = plan.emergency_reserve.toLocaleString() + " L";
+
+            const perPersonDay = Math.round(plan.total_monthly / (familySize * 30));
+            document.getElementById("per-person-day").innerText = perPersonDay + " L";
+
+            // Panel 3: Allocation
+            renderAllocation(plan.allocation);
+
+            // Panel 4: Tips
+            const impactBox = document.getElementById("impact-box");
+            const impactStars = document.getElementById("impact-stars");
+            const impactMsg = document.getElementById("impact-msg");
+
+            if (scarcity === "High") {
+                impactStars.innerText = "⚠️";
+                impactMsg.innerText = "Critical scarcity — strict conservation required.";
+                impactBox.className = "impact-box danger";
+            } else if (scarcity === "Medium") {
+                impactStars.innerText = "⭐⭐⭐";
+                impactMsg.innerText = "Moderate scarcity — follow the plan to stay safe.";
+                impactBox.className = "impact-box warning";
+            } else {
+                impactStars.innerText = "⭐⭐⭐⭐⭐";
+                impactMsg.innerText = "You are water-conscious! Keep up the good work.";
+                impactBox.className = "impact-box success";
+            }
+
+            // Seasonal Tip
+            const month = parseInt(formData.month);
+            const seasonalTip = document.getElementById("seasonal-tip");
+            if (month >= 3 && month <= 5) {
+                seasonalTip.innerHTML = "☀️ <strong>Summer Plan:</strong> Stricter rationing recommended. Reduce outdoor water use.";
+                seasonalTip.className = "seasonal-tip summer";
+            } else if (month >= 6 && month <= 9) {
+                seasonalTip.innerHTML = "🌧️ <strong>Monsoon Plan:</strong> Collect rainwater. Allow more for gardening if RWH available.";
+                seasonalTip.className = "seasonal-tip monsoon";
+            } else if (month >= 10 && month <= 11) {
+                seasonalTip.innerHTML = "🍂 <strong>Post-Monsoon:</strong> Monitor tank levels. Fill storage before dry season.";
+                seasonalTip.className = "seasonal-tip post-monsoon";
+            } else {
+                seasonalTip.innerHTML = "❄️ <strong>Winter Plan:</strong> Moderate usage. Good time for maintenance checks.";
+                seasonalTip.className = "seasonal-tip winter";
+            }
+
+            // Tips List
+            const tipsList = document.getElementById("smart-tips");
+            tipsList.innerHTML = "";
+            plan.tips.forEach(tip => {
+                let li = document.createElement("li");
+                li.innerText = tip;
+                tipsList.appendChild(li);
+            });
+        }
+
+        function renderGaugeChart(score) {
+            const ctx = document.getElementById("gaugeChart").getContext("2d");
+            if (gaugeChart) gaugeChart.destroy();
+
+            gaugeChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ["Score", "Remaining"],
+                    datasets: [{
+                        data: [score, 100 - score],
+                        backgroundColor: [
+                            score < 30 ? '#ef5350' : (score < 60 ? '#ffa726' : '#66bb6a'),
+                            '#eee'
+                        ],
+                        borderWidth: 0,
+                        cutout: '70%',
+                        rotation: 270,
+                        circumference: 180
+                    }]
+                },
+                options: {
+                    plugins: { legend: { display: false }, tooltip: { enabled: false } },
+                    aspectRatio: 2
+                }
+            });
+        }
+
+        function renderAllocation(allocation) {
+            const listContainer = document.getElementById("breakdown-list");
+            listContainer.innerHTML = "";
+
+            const labels = Object.keys(allocation);
+            const dataValues = Object.values(allocation);
+            const total = dataValues.reduce((a, b) => a + b, 0);
+
+            labels.forEach((label, idx) => {
+                const val = dataValues[idx];
+                const pct = Math.round((val / total) * 100);
+
+                const div = document.createElement("div");
+                div.className = "breakdown-item";
+                div.innerHTML = `<span>${label}</span> <strong>${val.toLocaleString()}L (${pct}%)</strong>`;
+                listContainer.appendChild(div);
+            });
+
+            const ctx = document.getElementById("allocationChart").getContext("2d");
+            if (allocationChart) allocationChart.destroy();
+
+            allocationChart = new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: dataValues,
+                        backgroundColor: ['#0288d1', '#03a9f4', '#29b6f6', '#4fc3f7', '#81d4fa', '#b3e5fc'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    plugins: { legend: { display: false } },
+                    maintainAspectRatio: false
+                }
+            });
+        }
+
+        function exportPDF() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+
+            const plan = resultData.plan_data;
+            const formData = resultData.formData;
+
+            doc.setFontSize(20);
+            doc.text("AquaForecast - Water Plan Report", 20, 20);
+
+            doc.setFontSize(12);
+            doc.text(`Ward: ${formData.ward} | Month: ${formData.month}/${formData.year}`, 20, 35);
+            doc.text(`Scarcity Level: ${resultData.scarcity}`, 20, 42);
+            doc.text(`Score: ${Number(resultData.score).toFixed(1)}/100`, 20, 49);
+
+            doc.setFontSize(14);
+            doc.text("Monthly Budget", 20, 65);
+            doc.setFontSize(11);
+            doc.text(`Total: ${plan.total_monthly.toLocaleString()} Liters`, 25, 73);
+            doc.text(`Weekly: ${plan.weekly_limit.toLocaleString()} Liters`, 25, 80);
+            doc.text(`Emergency Reserve: ${plan.emergency_reserve.toLocaleString()} Liters`, 25, 87);
+
+            doc.setFontSize(14);
+            doc.text("Task-wise Allocation", 20, 102);
+            doc.setFontSize(11);
+            let y = 110;
+            Object.entries(plan.allocation).forEach(([task, liters]) => {
+                doc.text(`${task}: ${liters.toLocaleString()} L`, 25, y);
+                y += 7;
+            });
+
+            doc.setFontSize(14);
+            doc.text("Conservation Tips", 20, y + 10);
+            doc.setFontSize(10);
+            y += 18;
+            plan.tips.forEach((tip, i) => {
+                if (y < 280) {
+                    doc.text(`${i + 1}. ${tip}`, 25, y);
+                    y += 6;
+                }
+            });
+
+            doc.save(`AquaForecast_Ward${formData.ward}_${formData.month}_${formData.year}.pdf`);
+        }
+
+        function showToast(msg) {
+            const t = document.getElementById("toast");
+            t.innerText = msg;
+            t.className = "toast show";
+            setTimeout(() => t.className = "toast", 3000);
+        }
+
+        /* ========== WARD COMPARISON (REDESIGNED) ========== */
+        let comparisonChart = null;
+        let comparisonData = null;
+        let userWardId = null;
+
+        function loadComparison() {
+            const formData = JSON.parse(sessionStorage.getItem('predictionData'));
+            userWardId = parseInt(formData.ward);
+            const btn = document.getElementById('compare-btn');
+            const loader = document.getElementById('comparison-loader');
+
+            btn.disabled = true;
+            btn.innerText = "Loading...";
+            loader.classList.remove('hidden');
+
+            fetch("/compare_wards", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ year: formData.year, month: formData.month })
+            })
+                .then(res => res.json())
+                .then(data => {
+                    comparisonData = data;
+                    loader.classList.add('hidden');
+                    btn.classList.add('hidden');
+                    document.getElementById('comparison-container').classList.remove('hidden');
+                    renderSummaryStats(data);
+                    renderTopBottom(data);
+                    renderHeatmap(data, userWardId);
+                })
+                .catch(err => {
+                    loader.classList.add('hidden');
+                    btn.disabled = false;
+                    btn.innerText = "📊 Compare with Other Wards";
+                    showToast("Error loading comparison: " + err);
+                });
+        }
+
+        function getScarcityColor(score, alpha = 1) {
+            if (score < 30) return `rgba(239, 83, 80, ${alpha})`;
+            if (score < 60) return `rgba(255, 167, 38, ${alpha})`;
+            return `rgba(102, 187, 106, ${alpha})`;
+        }
+
+        function getScarcityClass(score) {
+            if (score < 30) return 'high';
+            if (score < 60) return 'medium';
+            return 'low';
+        }
+
+        function renderSummaryStats(data) {
+            const high = data.filter(d => d.score < 30).length;
+            const medium = data.filter(d => d.score >= 30 && d.score < 60).length;
+            const low = data.filter(d => d.score >= 60).length;
+            const avgScore = (data.reduce((s, d) => s + d.score, 0) / data.length).toFixed(1);
+
+            document.getElementById('comparison-summary').innerHTML = `
+                <div class="summary-card summary-high">
+                    <div class="summary-count">${high}</div>
+                    <div class="summary-label">High Scarcity</div>
+                    <div class="summary-bar"><div class="summary-fill high" style="width:${(high / data.length * 100)}%"></div></div>
+                </div>
+                <div class="summary-card summary-medium">
+                    <div class="summary-count">${medium}</div>
+                    <div class="summary-label">Medium Scarcity</div>
+                    <div class="summary-bar"><div class="summary-fill medium" style="width:${(medium / data.length * 100)}%"></div></div>
+                </div>
+                <div class="summary-card summary-low">
+                    <div class="summary-count">${low}</div>
+                    <div class="summary-label">Low Scarcity</div>
+                    <div class="summary-bar"><div class="summary-fill low" style="width:${(low / data.length * 100)}%"></div></div>
+                </div>
+                <div class="summary-card summary-avg">
+                    <div class="summary-count">${avgScore}</div>
+                    <div class="summary-label">Avg Score</div>
+                    <div class="summary-bar"><div class="summary-fill avg" style="width:${avgScore}%"></div></div>
+                </div>
+            `;
+        }
+
+        function renderTopBottom(data) {
+            const sorted = [...data].sort((a, b) => a.score - b.score);
+            const bottom5 = sorted.slice(0, 5);
+            const top5 = sorted.slice(-5).reverse();
+
+            let html = `
+                <div class="tb-card tb-danger">
+                    <div class="tb-title">🚨 Most Water-Scarce Wards</div>
+                    <div class="tb-list">
+                        ${bottom5.map((d, i) => `
+                            <div class="tb-item">
+                                <span class="tb-rank">#${i + 1}</span>
+                                <span class="tb-ward">Ward ${d.ward}</span>
+                                <span class="tb-score" style="color:${getScarcityColor(d.score)}">${d.score.toFixed(1)}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+                <div class="tb-card tb-success">
+                    <div class="tb-title">💧 Best Water Availability</div>
+                    <div class="tb-list">
+                        ${top5.map((d, i) => `
+                            <div class="tb-item">
+                                <span class="tb-rank">#${i + 1}</span>
+                                <span class="tb-ward">Ward ${d.ward}</span>
+                                <span class="tb-score" style="color:${getScarcityColor(d.score)}">${d.score.toFixed(1)}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+            document.getElementById('top-bottom-row').innerHTML = html;
+        }
+
+        function renderHeatmap(data, userWard) {
+            const container = document.getElementById('heatmap-view');
+            container.innerHTML = '';
+
+            data.forEach(d => {
+                const cell = document.createElement('div');
+                const scClass = getScarcityClass(d.score);
+                const isUser = d.ward === userWard;
+                cell.className = `ward-cell ward-${scClass}${isUser ? ' ward-user' : ''}`;
+                cell.id = `ward-cell-${d.ward}`;
+                cell.innerHTML = `<span class="cell-ward">${d.ward}</span><span class="cell-score">${d.score.toFixed(0)}</span>`;
+                cell.title = `Ward ${d.ward} — Score: ${d.score.toFixed(1)}/100 — ${d.label} Scarcity`;
+                container.appendChild(cell);
+            });
+        }
+
+        function renderComparisonChart(data, userWard) {
+            const labels = data.map(d => `${d.ward}`);
+            const scores = data.map(d => d.score);
+            const colors = data.map(d => {
+                if (d.ward === userWard) return '#1565c0';
+                return getScarcityColor(d.score, 0.85);
+            });
+            const borderColors = data.map(d => {
+                if (d.ward === userWard) return '#0d47a1';
+                return getScarcityColor(d.score, 1);
+            });
+
+            const ctx = document.getElementById("comparisonChart").getContext("2d");
+            if (comparisonChart) comparisonChart.destroy();
+
+            comparisonChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Scarcity Score',
+                        data: scores,
+                        backgroundColor: colors,
+                        borderColor: borderColors,
+                        borderWidth: 1,
+                        borderRadius: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: 'rgba(30,30,30,0.95)',
+                            titleFont: { size: 13, weight: '600' },
+                            bodyFont: { size: 12 },
+                            padding: 12,
+                            cornerRadius: 8,
+                            callbacks: {
+                                title: (items) => `Ward ${items[0].label}`,
+                                label: (item) => {
+                                    const score = item.raw;
+                                    const level = score < 30 ? '🔴 High' : (score < 60 ? '🟠 Medium' : '🟢 Low');
+                                    return [`Score: ${score.toFixed(1)} / 100`, `Level: ${level}`];
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            title: { display: true, text: 'Ward Number', font: { weight: '600' } },
+                            ticks: { maxRotation: 90, minRotation: 60, font: { size: 9 } },
+                            grid: { display: false }
+                        },
+                        y: {
+                            min: 0,
+                            max: 100,
+                            title: { display: true, text: 'Water Availability Score', font: { weight: '600' } },
+                            grid: { color: 'rgba(0,0,0,0.06)' }
+                        }
+                    }
+                }
+            });
+        }
+
+        function switchView(view) {
+            const heatmap = document.getElementById('heatmap-view');
+            const chart = document.getElementById('chart-view');
+            const btnHeatmap = document.getElementById('toggle-heatmap');
+            const btnChart = document.getElementById('toggle-chart');
+
+            if (view === 'heatmap') {
+                heatmap.classList.remove('hidden');
+                chart.classList.add('hidden');
+                btnHeatmap.classList.add('active');
+                btnChart.classList.remove('active');
+            } else {
+                heatmap.classList.add('hidden');
+                chart.classList.remove('hidden');
+                btnHeatmap.classList.remove('active');
+                btnChart.classList.add('active');
+                if (!comparisonChart && comparisonData) {
+                    renderComparisonChart(comparisonData, userWardId);
+                }
+            }
+        }
+
+        function searchWard(value) {
+            // Remove previous highlights
+            document.querySelectorAll('.ward-cell.search-highlight').forEach(c => c.classList.remove('search-highlight'));
+
+            if (!value) return;
+            const wardNum = parseInt(value);
+            const cell = document.getElementById(`ward-cell-${wardNum}`);
+            if (cell) {
+                cell.classList.add('search-highlight');
+                cell.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+        }
+    </script>
+    {% endblock %}

@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AquaForecast | Advanced Water Planning</title>
+
+    <!-- Meta -->
+    <meta name="description" content="AI-powered Ward-wise Water Scarcity Prediction">
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Outfit:wght@500;700;800&display=swap"
+        rel="stylesheet">
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- Styles -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=4">
+</head>
+
+<body>
+
+    <main class="container">
+        <header>
+            <h1>AquaForecast</h1>
+            <p class="subtitle">AI-Powered Water Scarcity Prediction & Planning</p>
+        </header>
+
+        <div class="main-grid">
+            <!-- Left Column: Detailed Inputs -->
+            <div class="input-column">
+
+                <!-- Section A: Location -->
+                <div class="input-section">
+                    <div class="section-badge">A</div>
+                    <h3>Location & Time</h3>
+                    <div class="grid-2">
+                        <div class="form-group">
+                            <label>Ward No. (22-155)</label>
+                            <input type="number" id="ward" value="22" min="22" max="155">
+                        </div>
+                        <div class="form-group">
+                            <label>Year</label>
+                            <input type="number" id="year" value="2026" min="2021" max="2035">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Month</label>
+                        <select id="month">
+                            <option value="1">January</option>
+                            <option value="2">February</option>
+                            <option value="3">March</option>
+                            <option value="4">April</option>
+                            <option value="5">May</option>
+                            <option value="6">June</option>
+                            <option value="7">July</option>
+                            <option value="8">August</option>
+                            <option value="9">September</option>
+                            <option value="10">October</option>
+                            <option value="11">November</option>
+                            <option value="12">December</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Section B: Household Profile -->
+                <div class="input-section">
+                    <div class="section-badge">B</div>
+                    <h3>Household Profile</h3>
+                    <div class="grid-2">
+                        <div class="form-group">
+                            <label>Family Size</label>
+                            <input type="number" id="family_size" value="4" min="1">
+                        </div>
+                        <div class="form-group">
+                            <label>Storage (Liters)</label>
+                            <input type="number" id="storage_cap" value="1000">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>House Type</label>
+                        <select id="house_type">
+                            <option value="Apartment">Apartment</option>
+                            <option value="Independent House">Independent House</option>
+                            <option value="Gated Community">Gated Community</option>
+                            <option value="Informal Settlement">Informal Settlement</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Section C: Usage Patterns -->
+                <div class="input-section">
+                    <div class="section-badge">C</div>
+                    <h3>Water Usage Pattern</h3>
+
+                    <div class="form-group">
+                        <label>Primary Source</label>
+                        <select id="primary_source">
+                            <option value="Corporation">Corporation Supply</option>
+                            <option value="Borewell">Borewell</option>
+                            <option value="Tanker">Tanker</option>
+                            <option value="Mixed">Mixed Supply</option>
+                        </select>
+                    </div>
+
+                    <div class="grid-2">
+                        <div class="form-group">
+                            <label>Bathing Method</label>
+                            <select id="bathing_method">
+                                <option value="Bucket">Bucket (Efficient)</option>
+                                <option value="Shower">Shower</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Washing Machine</label>
+                            <select id="washing_machine">
+                                <option value="1-2">1-2 times/week</option>
+                                <option value="3-4">3-4 times/week</option>
+                                <option value="Daily">Daily</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="grid-2">
+                        <div class="form-group">
+                            <label>Gardening</label>
+                            <select id="gardening">
+                                <option value="None">No Garden</option>
+                                <option value="Small">Small Garden</option>
+                                <option value="Large">Large Garden</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Car Wash</label>
+                            <select id="car_wash">
+                                <option value="Never">Never</option>
+                                <option value="Weekly">Weekly</option>
+                                <option value="Daily">Daily</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Additional Toggles -->
+                    <div class="form-group" style="margin-top: 10px;">
+                        <label>Rainwater Harvesting?</label>
+                        <select id="has_rwh">
+                            <option value="No">No</option>
+                            <option value="Yes">Yes</option>
+                        </select>
+                    </div>
+                </div>
+
+                <button class="btn-predict" onclick="predict()">
+                    Generate Adaptive Plan
+                </button>
+            </div>
+
+            <!-- Right Column: Dashboard Results -->
+            <div class="result-column">
+                <div class="loader" id="loader"></div>
+                <div id="welcome-msg" style="text-align:center; color:#888; margin-top: 5rem;">
+                    <h3>Ready to Plan?</h3>
+                    <p>Enter details on the left and click Generate.</p>
+                </div>
+
+                <div id="dashboard-grid" class="dashboard-grid hidden">
+
+                    <!-- Panel 1: Ward Status -->
+                    <div class="dash-panel">
+                        <div class="panel-head">Ward Water Status</div>
+                        <div class="scarcity-box">
+                            <div id="scarcity-label" class="badge">--</div>
+                        </div>
+                        <div style="height: 120px; position: relative;">
+                            <!-- Gauge Chart Canvas -->
+                            <canvas id="gaugeChart"></canvas>
+                        </div>
+                        <p class="panel-sub" id="score-text">Availability Score: --/100</p>
+                        <p class="context-reason" id="context-reason"></p>
+                    </div>
+
+                    <!-- Panel 2: Household Profile -->
+                    <div class="dash-panel">
+                        <div class="panel-head">Household Budget</div>
+                        <div class="big-stat" id="total-monthly">-- L</div>
+                        <p class="stat-label">Total Monthly Limit</p>
+
+                        <div class="stat-row">
+                            <span>Weekly Limit:</span>
+                            <strong id="weekly-limit">-- L</strong>
+                        </div>
+                        <div class="stat-row highlight-red">
+                            <span>Emergency Reserve:</span>
+                            <strong id="emergency-reserve">-- L</strong>
+                        </div>
+                    </div>
+
+                    <!-- Panel 3: Allocation -->
+                    <div class="dash-panel span-2">
+                        <div class="panel-head">Task-wise Allocation</div>
+                        <div class="chart-flex">
+                            <div class="chart-container-pie">
+                                <canvas id="allocationChart"></canvas>
+                            </div>
+                            <div class="breakdown-list" id="breakdown-list">
+                                <!-- List items injected here -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Panel 4: Sustainability & Tips -->
+                    <div class="dash-panel span-2">
+                        <div class="panel-head">Sustainability & Tips</div>
+                        <div class="impact-box">
+                            <span style="font-size: 1.5rem;">⭐⭐⭐⭐</span>
+                            <span id="impact-msg">You are water-conscious!</span>
+                        </div>
+
+                        <ul id="smart-tips" class="tips-list">
+                            <!-- Tips injected here -->
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <footer>
+            &copy; 2026 Water Scarcity Prediction System
+        </footer>
+    </main>
+
+    <div id="toast" class="toast">Invalid Ward! Please enter between 22 and 155.</div>
+
+    <script src="{{ url_for('static', filename='js/script.js') }}?v=5"></script>
+</body>
+
+</html>
